@@ -1,13 +1,18 @@
 import { Module } from '@nestjs/common';
-import { AppController } from './app.controller';
-import { AppService } from './app.service';
 import { PrismaService } from './prisma/prisma.service';
 import { UserService } from './user/user.service';
 import { PostService } from './post/post.service';
+import { PostController } from './post/post.controller';
+import { UserController } from './user/user.controller';
+import { MulterModule } from '@nestjs/platform-express';
 
 @Module({
-  imports: [],
-  controllers: [AppController],
-  providers: [AppService, PrismaService, UserService, PostService],
+    imports: [
+        MulterModule.register({
+            dest: './files',
+        })
+    ],
+    controllers: [PostController, UserController],
+    providers: [PrismaService, UserService, PostService],
 })
 export class AppModule {}

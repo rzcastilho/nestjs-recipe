@@ -56,12 +56,21 @@ model User {
 }
 
 model Post {
-  id        Int      @default(autoincrement()) @id
-  title     String
-  content   String?
-  published Boolean? @default(false)
-  author    User?    @relation(fields: [authorId], references: [id])
-  authorId  Int?
+  id         Int       @default(autoincrement()) @id
+  title      String
+  content    String?
+  published  Boolean?  @default(false)
+  author     User?     @relation(fields: [authorId], references: [id])
+  authorId   Int?
+  category   Category? @relation(fields: [categoryId], references: [id])
+  categoryId Int?
+}
+
+model Category {
+  id          Int       @default(autoincrement()) @id
+  name        String
+  description String
+  posts       Post[]
 }
 ```
 
@@ -80,7 +89,11 @@ $ npm install @prisma/client
 $ npx prisma generate
 ```
 
-If you update `schema.prisma`, you can update the client running the `generate` command again..
+If you update `schema.prisma`, you can update the client running the `generate` command again.
+
+### Seed
+
+TODO
 
 ## Services
 
@@ -241,5 +254,128 @@ export class PostService {
       where,
     });
   }
+}
+```
+
+## Controllers
+
+### Post Controller
+
+Create a controller with post routes.
+
+```shell
+$ nest generate co post
+```
+
+Edit the `post.controller.ts` file with the following implementation.
+
+```ts
+import {
+    Controller,
+    Get,
+    Param,
+    Post,
+    Body,
+    Put,
+    Delete,
+} from '@nestjs/common';
+import { Post as PostModel } from '@prisma/client';
+import { PostService } from './post.service';
+
+@Controller('post')
+export class PostController {
+    constructor(
+        private readonly postService: PostService,
+    ) {}
+
+    @Get(':id')
+    async getPostById(@Param('id') id: string): Promise<PostModel> {
+        return this.postService.post({ id: Number(id) });
+    }
+
+    @Get('feed')
+    async getPublishedPosts(): Promise<PostModel[]> {
+        return this.postService.posts({
+            where: { published: true },
+        });
+    }
+
+    @Get('filter/:searchString')
+    async getFilteredPosts(
+        @Param('searchString') searchString: string,
+    ): Promise<PostModel[]> {
+        return this.postService.posts({
+            where: {
+                OR: [
+                    {
+                        title: { contains: searchString },
+                    },
+                    {
+                        content: { contains: searchString },
+                    },
+                ],
+            },
+        });
+    }
+
+    @Post()
+    async createDraft(
+        @Body() postData: { title: string; content?: string; authorEmail: string },
+    ): Promise<PostModel> {
+        const { title, content, authorEmail } = postData;
+        return this.postService.createPost({
+            title,
+            content,
+            author: {
+                connect: { email: authorEmail },
+            },
+        });
+    }
+
+    @Put('publish/:id')
+    async publishPost(@Param('id') id: string): Promise<PostModel> {
+        return this.postService.updatePost({
+            where: { id: Number(id) },
+            data: { published: true },
+        });
+    }
+
+    @Delete(':id')
+    async deletePost(@Param('id') id: string): Promise<PostModel> {
+        return this.postService.deletePost({ id: Number(id) });
+    }
+}
+```
+
+### User Controller
+
+Create a controller with user routes.
+
+```shell
+$ nest generate co user
+```
+
+Edit the `user.controller.ts` file with the following implementation.
+
+```ts
+import {
+    Controller,
+    Post,
+    Body
+} from '@nestjs/common';
+import { UserService } from './user.service';
+import { User as UserModel } from '@prisma/client';
+
+@Controller('user')
+export class UserController {
+    constructor(
+        private readonly userService: UserService
+    ) {}
+    @Post()
+    async signupUser(
+        @Body() userData: { name?: string; email: string },
+    ): Promise<UserModel> {
+        return this.userService.createUser(userData);
+    }
 }
 ```
